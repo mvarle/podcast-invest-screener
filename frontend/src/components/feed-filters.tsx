@@ -1,8 +1,9 @@
 "use client";
 
-import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+
+const confidenceLevels = [0, 25, 50, 75] as const;
 
 type Sentiment = "bullish" | "bearish" | "hold";
 
@@ -60,17 +61,22 @@ export function FeedFilters({
         <span className="text-sm font-medium whitespace-nowrap">
           Min confidence
         </span>
-        <Slider
-          value={[minConfidence]}
-          onValueChange={(v) => onConfidenceChange(Array.isArray(v) ? v[0] : v)}
-          min={0}
-          max={100}
-          step={5}
-          className="w-40"
-        />
-        <span className="text-sm text-muted-foreground tabular-nums w-10">
-          {minConfidence}%
-        </span>
+        <div className="flex items-center gap-1">
+          {confidenceLevels.map((level) => (
+            <button
+              key={level}
+              onClick={() => onConfidenceChange(level)}
+              className={cn(
+                "px-2 py-0.5 text-xs rounded-md border transition-colors",
+                minConfidence === level
+                  ? "bg-foreground text-background border-foreground"
+                  : "bg-transparent text-muted-foreground border-border hover:border-foreground/40"
+              )}
+            >
+              {level === 0 ? "All" : `${level}%+`}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="flex items-center gap-1">
         {(Object.keys(sentimentConfig) as Sentiment[]).map((sentiment) => {
