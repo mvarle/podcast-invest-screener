@@ -1,0 +1,35 @@
+{
+  "name": "podcast-invest-screener",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "pipeline": "node pipeline/run.js",
+    "pipeline:ingest": "node pipeline/run.js --ingest",
+    "pipeline:transcribe": "node pipeline/run.js --transcribe",
+    "pipeline:extract": "node pipeline/run.js --extract",
+    "validate:fetch": "node validation/01-fetch-episode.js",
+    "validate:transcribe": "node validation/02-transcribe.js",
+    "validate:extract": "node validation/03-extract.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mvarle/podcast-invest-screener.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/mvarle/podcast-invest-screener/issues"
+  },
+  "homepage": "https://github.com/mvarle/podcast-invest-screener#readme",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
+    "@deepgram/sdk": "^5.0.0",
+    "@supabase/supabase-js": "^2.100.1",
+    "dotenv": "^17.3.1",
+    "rss-parser": "^3.13.0"
+  }
+}

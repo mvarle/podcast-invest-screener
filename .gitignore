@@ -205,3 +205,12 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# PodSignal validation output (transcripts, extractions)
+validation/output/
+
+# Node
+node_modules/
+
+# Claude Code local config
+.claude/
