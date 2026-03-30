@@ -66,7 +66,7 @@ export function FeedFilters({
           min={0}
           max={100}
           step={5}
-          className="w-32"
+          className="w-40"
         />
         <span className="text-sm text-muted-foreground tabular-nums w-10">
           {minConfidence}%
