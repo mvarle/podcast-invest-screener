@@ -6,9 +6,12 @@ import { FeedFilters } from "@/components/feed-filters";
 import type { MentionWithEpisode } from "@/types/database";
 
 type Sentiment = "bullish" | "bearish" | "hold";
+type Conviction = "strong" | "moderate" | "tentative";
 
 export function FeedContent({ mentions }: { mentions: MentionWithEpisode[] }) {
-  const [minConfidence, setMinConfidence] = useState(0);
+  const [convictionFilter, setConvictionFilter] = useState<Set<Conviction>>(
+    new Set(["strong", "moderate"])
+  );
   const [activeSentiments, setActiveSentiments] = useState<Sentiment[]>([
     "bullish",
     "bearish",
@@ -17,15 +20,17 @@ export function FeedContent({ mentions }: { mentions: MentionWithEpisode[] }) {
 
   const filtered = mentions.filter(
     (m) =>
-      (m.confidence ?? 0) * 100 >= minConfidence &&
-      activeSentiments.includes(m.sentiment)
+      activeSentiments.includes(m.sentiment) &&
+      (m.conviction_strength
+        ? convictionFilter.has(m.conviction_strength)
+        : convictionFilter.has("tentative"))
   );
 
   return (
     <>
       <FeedFilters
-        minConfidence={minConfidence}
-        onConfidenceChange={setMinConfidence}
+        convictionFilter={convictionFilter}
+        onConvictionChange={setConvictionFilter}
         activeSentiments={activeSentiments}
         onSentimentChange={setActiveSentiments}
         filteredCount={filtered.length}
@@ -36,7 +41,7 @@ export function FeedContent({ mentions }: { mentions: MentionWithEpisode[] }) {
         <div className="text-center py-16 text-muted-foreground">
           <p className="text-lg mb-2">No mentions match this filter</p>
           <p className="text-sm">
-            Try adjusting the confidence or sentiment filters.
+            Try adjusting the conviction or sentiment filters.
           </p>
         </div>
       ) : (

@@ -9,7 +9,30 @@ const { supabase } = require("../supabase-client");
 const { applyCorrections } = require("../transcript-corrections");
 
 const MAX_RETRIES = 5;
-const MIN_KEYWORD_LENGTH = 5; // Skip short names that cause substitution artifacts
+const MIN_KEYWORD_LENGTH = 6; // Skip short names that cause substitution artifacts
+const KEYWORD_BOOST_WEIGHT = 1; // Reduced from 2 to minimize false substitutions
+
+// Names that collide with common Danish words or cause systematic transcription errors.
+// These are excluded from keyword boosting regardless of length.
+const EXCLUDED_KEYWORDS = new Set([
+  // Danish word collisions
+  "danske",     // "danske" is a common Danish word (Danish/the Danish)
+  "vestas",     // can collide with Danish words in context
+  "royal",      // common word
+  "nordea",     // similar to "nord" (north) — causes substitutions
+  "investor",   // common word
+  "elisa",      // common name
+  "fortum",     // sounds like Danish words
+  "sampo",      // can collide
+  // English financial terms that Deepgram already knows
+  "apple",
+  "shell",
+  "volvo",
+  // Single-word names that are too generic
+  "reply",
+  "kone",       // "kone" means "wife" in Danish
+  "ambu",       // too short/ambiguous
+]);
 
 async function transcribe() {
   const apiKey = process.env.DEEPGRAM_API_KEY;
@@ -36,6 +59,7 @@ async function transcribe() {
   }
 
   // Build keyword boosting from stock_tickers table
+  // Only boost multi-word names and unambiguous single-word names
   const { data: tickers } = await supabase
     .from("stock_tickers")
     .select("common_names")
@@ -44,9 +68,9 @@ async function transcribe() {
   const keywords = [];
   for (const t of tickers || []) {
     for (const name of t.common_names) {
-      if (name.length >= MIN_KEYWORD_LENGTH) {
-        keywords.push(`${name}:2`);
-      }
+      if (name.length < MIN_KEYWORD_LENGTH) continue;
+      if (EXCLUDED_KEYWORDS.has(name.toLowerCase())) continue;
+      keywords.push(`${name}:${KEYWORD_BOOST_WEIGHT}`);
     }
   }
   console.log(`  Loaded ${keywords.length} keyword boosts from stock_tickers\n`);

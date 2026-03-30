@@ -29,17 +29,17 @@ const EXTRACTION_TOOL = {
             company_name: {
               type: "string",
               description:
-                "The company name as mentioned in the podcast (in Danish or English)",
+                "The company name as discussed in the podcast.",
             },
             ticker: {
               type: "string",
               description:
-                "Stock ticker symbol if confidently known (e.g., NVO, NOVO-B.CO). Use null if unsure.",
+                "Stock ticker if confidently known (e.g., NOVO-B.CO, AAPL). Use null if unsure.",
             },
             sentiment: {
               type: "string",
               enum: ["bullish", "bearish", "hold"],
-              description: "The speaker's sentiment toward this stock",
+              description: "The speaker's net directional view on this stock.",
             },
             mention_type: {
               type: "string",
@@ -49,39 +49,42 @@ const EXTRACTION_TOOL = {
                 "passing_mention",
                 "news_reference",
               ],
-              description:
-                "investment_call = speaker expresses a directional opinion they would act on. comparison = mentioned to contrast with main topic. passing_mention = brief reference without opinion. news_reference = reporting news without personal view.",
             },
             confidence: {
               type: "number",
               description:
-                "Confidence in the extraction accuracy (0.0-1.0). Lower if sentiment is ambiguous or hedged.",
+                "Extraction confidence (0.0-1.0). Reflects ONLY transcript parsing clarity — NOT how hedged the speaker was.",
             },
             speaker: {
               type: "string",
               description:
-                "Speaker name if identifiable from the transcript, otherwise 'Speaker N' from diarization.",
+                "Speaker name. Use known host/guest names when identifiable. Use 'Unknown Guest' for unidentifiable speakers.",
             },
             timestamp: {
               type: "string",
               description:
-                "Approximate timestamp in the transcript (e.g., '12:30')",
+                "Approximate timestamp from the transcript (e.g., '12:30').",
             },
             quote: {
               type: "string",
               description:
-                "2-4 sentence excerpt from the transcript (in Danish) capturing the key opinion. Keep the original language.",
+                "2-4 sentence CONTIGUOUS excerpt from the transcript (in original Danish). Must be an actual passage, not stitched from multiple segments.",
             },
             reasoning: {
               type: "string",
               description:
-                "Brief explanation of why this sentiment was assigned (in English). Include the speaker's rationale if stated.",
+                "Brief analytical explanation in English. Describe the speaker's argument. Do NOT translate the Danish quote.",
+            },
+            call_summary: {
+              type: "string",
+              description:
+                "A single sentence of original financial analysis summarizing the speaker's position. NOT a translation of the quote. Example: 'Sees current valuation as attractive following the 40% pullback, expecting GLP-1 demand to drive a guidance raise.'",
             },
             conviction_strength: {
               type: "string",
               enum: ["strong", "moderate", "tentative"],
               description:
-                "How strongly the speaker expressed this opinion. strong = definitive recommendation, moderate = clear lean, tentative = hedged/conditional.",
+                "strong = first-person action language, no hedging. moderate = directional lean with qualification. tentative = musing, hypothetical, or responding to a question. When in doubt, choose the lower level.",
             },
           },
           required: [
@@ -92,6 +95,7 @@ const EXTRACTION_TOOL = {
             "speaker",
             "quote",
             "reasoning",
+            "call_summary",
             "conviction_strength",
           ],
         },
@@ -128,30 +132,38 @@ const EXTRACTION_TOOL = {
   },
 };
 
-const SYSTEM_PROMPT = `You are a financial analyst reviewing a Danish investment podcast transcript. Your task is to extract all stock mentions with their associated sentiment, speaker attribution, and supporting quotes.
+const SYSTEM_PROMPT = `You are a conservative financial analyst reviewing a Danish investment podcast transcript. Your priority is ACCURACY over COMPLETENESS. It is far better to miss a mention than to misattribute sentiment or fabricate a call.
 
-RULES:
-1. Carefully distinguish between mention types:
-   - "investment_call": The speaker expresses a clear directional opinion they would act on (e.g., "Jeg ville købe Novo Nordisk her", "Vi er meget positive på Vestas")
-   - "comparison": Stock mentioned to contrast with the main topic (e.g., "I modsætning til Carlsberg, som har været flad...")
-   - "passing_mention": Brief reference without substantive opinion
-   - "news_reference": Reporting news/earnings without personal view
+MENTION TYPE CLASSIFICATION (apply in order):
+1. Does the speaker explicitly state they would buy, sell, or hold? → "investment_call"
+2. Clear directional opinion as main discussion topic? → "investment_call"
+3. Contrasting with another stock? → "comparison"
+4. Reporting news/earnings without personal view? → "news_reference"
+5. Brief mention without opinion? → "passing_mention" (skip unless clear sentiment)
+DEFAULT: When in doubt, choose "news_reference" over "investment_call".
 
-2. For each investment_call, capture the speaker's reasoning if stated.
+CONVICTION STRENGTH:
+- "strong": First-person action language, NO hedging. "Jeg har købt", "Det er et klart køb"
+- "moderate": Directional lean with qualification. "Jeg tror den er interessant", "Der burde være potentiale"
+- "tentative": Musing, hypothetical, responding to question. "Hvis man skulle...", "Man kunne overveje..."
+When in doubt, choose the lower level.
 
-3. If a speaker changes their mind during the episode, create TWO separate entries with different timestamps.
+CONFIDENCE vs CONVICTION — SEPARATE dimensions:
+- confidence: How clearly could we parse the transcript? (transcription quality, speaker clarity, unambiguous company reference). NOT about how hedged the speaker was.
+- conviction_strength: How strongly the speaker expressed their view. NOT about transcription quality.
 
-4. If sentiment is heavily hedged or ambiguous, use "hold" with confidence < 0.5.
+DANISH CALIBRATION: Danish speakers understate. "Ret interessant" ≈ genuine enthusiasm (moderate+). "Jeg er tæt på at købe" ≈ strong purchase intent (strong).
 
-5. Keep quotes in the ORIGINAL Danish. Do not translate quotes.
+TRANSCRIPT ARTIFACTS: Auto-generated transcript may contain errors. "Envidia" = NVIDIA, "SMS" = ASML, "dåb" = Adobe, "microron" = Micron. "bear" may be "bare" (just/only). Only extract genuine company discussions, not transcription artifacts.
 
-6. Write reasoning in English.
+QUOTES: Must be actual CONTIGUOUS passages in original Danish. Do NOT stitch utterances from different timestamps.
 
-7. For tickers: only include if you are confident of the exact ticker symbol. For Danish stocks, use Copenhagen exchange tickers (e.g., NOVO-B.CO, CARL-B.CO, MAERSK-B.CO). If unsure, leave ticker as null — the company_name is more important.
+CALL_SUMMARY: Write as original financial analysis, NOT a translation of the Danish quote.
 
-8. Try to identify speakers by name from the transcript context (introductions, when hosts address each other by name). Map diarization labels (Speaker 0, Speaker 1) to actual names where possible.
+SPEAKER ID: Map "Speaker N" to real names from context. Use "Unknown Guest" if unidentifiable.
 
-9. Focus on QUALITY over QUANTITY. Only extract mentions where there is genuine investment-relevant content. Skip trivial passing mentions of company names.`;
+IGNORE: Sponsor/ad segments, trivial passing mentions, transcript artifacts.`;
+
 
 async function extract() {
   // Validate API key
@@ -274,6 +286,7 @@ async function extract() {
         `     Speaker: ${m.speaker} | Conviction: ${m.conviction_strength} | Confidence: ${(m.confidence * 100).toFixed(0)}%`
       );
       console.log(`     Timestamp: ${m.timestamp || "unknown"}`);
+      console.log(`     Call Summary: ${m.call_summary || "(none)"}`);
       console.log(`     Quote: "${m.quote?.substring(0, 200)}..."`);
       console.log(`     Reasoning: ${m.reasoning}`);
     });

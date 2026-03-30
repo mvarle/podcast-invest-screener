@@ -53,10 +53,9 @@ export type Database = {
           confidence: number | null;
           conviction_strength: "strong" | "moderate" | "tentative" | null;
           speaker: string | null;
+          speaker_role: "host" | "regular_guest" | "guest" | null;
           timestamp_in_transcript: string | null;
-          quote: string;
-          reasoning: string | null;
-          transcript_context: string | null;
+          call_summary: string | null;
           baseline_price: number | null;
           baseline_price_date: string | null;
           created_at: string;
@@ -112,7 +111,7 @@ export type StockTicker = Database["public"]["Tables"]["stock_tickers"]["Row"];
 
 // Joined types for the feed
 export type MentionWithEpisode = StockMention & {
-  episodes: Pick<Episode, "title" | "release_date" | "podcast_id"> & {
+  episodes: Pick<Episode, "title" | "release_date" | "podcast_id" | "audio_url"> & {
     podcasts: Pick<Podcast, "name">;
   };
 };

@@ -14,7 +14,7 @@ async function getMentionsForSpeaker(
   const decoded = decodeURIComponent(name);
 
   const { data, error } = await supabase
-    .from("stock_mentions")
+    .from("stock_mentions_public")
     .select(
       `
       *,
@@ -22,6 +22,7 @@ async function getMentionsForSpeaker(
         title,
         release_date,
         podcast_id,
+        audio_url,
         podcasts!inner (
           name
         )

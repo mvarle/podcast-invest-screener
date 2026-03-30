@@ -35,7 +35,7 @@ async function getStocks(): Promise<StockSummary[]> {
   if (!supabase) return [];
 
   const { data, error } = await supabase
-    .from("stock_mentions")
+    .from("stock_mentions_public")
     .select("ticker, company_name, exchange, sentiment, created_at")
     .in("mention_type", ["investment_call"])
     .order("created_at", { ascending: false });

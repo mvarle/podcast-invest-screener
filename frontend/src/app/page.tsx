@@ -8,7 +8,7 @@ async function getMentions(): Promise<MentionWithEpisode[]> {
   if (!supabase) return [];
 
   const { data, error } = await supabase
-    .from("stock_mentions")
+    .from("stock_mentions_public")
     .select(
       `
       *,
@@ -16,6 +16,7 @@ async function getMentions(): Promise<MentionWithEpisode[]> {
         title,
         release_date,
         podcast_id,
+        audio_url,
         podcasts!inner (
           name
         )
