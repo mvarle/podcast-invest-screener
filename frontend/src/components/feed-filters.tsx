@@ -3,9 +3,14 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-const confidenceLevels = [0, 25, 50, 75] as const;
-
+type Conviction = "strong" | "moderate" | "tentative";
 type Sentiment = "bullish" | "bearish" | "hold";
+
+const convictionOptions: { value: Conviction | "all"; label: string }[] = [
+  { value: "strong", label: "Strong" },
+  { value: "moderate", label: "Moderate" },
+  { value: "all", label: "All" },
+];
 
 const sentimentConfig: Record<
   Sentiment,
@@ -29,8 +34,8 @@ const sentimentConfig: Record<
 };
 
 interface FeedFiltersProps {
-  minConfidence: number;
-  onConfidenceChange: (value: number) => void;
+  convictionFilter: Set<Conviction>;
+  onConvictionChange: (filter: Set<Conviction>) => void;
   activeSentiments: Sentiment[];
   onSentimentChange: (sentiments: Sentiment[]) => void;
   filteredCount: number;
@@ -38,8 +43,8 @@ interface FeedFiltersProps {
 }
 
 export function FeedFilters({
-  minConfidence,
-  onConfidenceChange,
+  convictionFilter,
+  onConvictionChange,
   activeSentiments,
   onSentimentChange,
   filteredCount,
@@ -47,7 +52,6 @@ export function FeedFilters({
 }: FeedFiltersProps) {
   function toggleSentiment(sentiment: Sentiment) {
     if (activeSentiments.includes(sentiment)) {
-      // Don't allow deselecting all
       if (activeSentiments.length === 1) return;
       onSentimentChange(activeSentiments.filter((s) => s !== sentiment));
     } else {
@@ -55,27 +59,54 @@ export function FeedFilters({
     }
   }
 
+  function handleConvictionClick(value: Conviction | "all") {
+    if (value === "all") {
+      // Toggle between showing all and showing strong+moderate only
+      if (convictionFilter.has("tentative")) {
+        onConvictionChange(new Set<Conviction>(["strong", "moderate"]));
+      } else {
+        onConvictionChange(
+          new Set<Conviction>(["strong", "moderate", "tentative"])
+        );
+      }
+    } else {
+      const next = new Set(convictionFilter);
+      if (next.has(value)) {
+        if (next.size > 1) next.delete(value);
+      } else {
+        next.add(value);
+      }
+      onConvictionChange(next);
+    }
+  }
+
   return (
     <div className="flex items-center gap-4 p-3 rounded-lg border bg-card flex-wrap">
       <div className="flex items-center gap-2 min-w-0">
         <span className="text-sm font-medium whitespace-nowrap">
-          Min confidence
+          Conviction
         </span>
         <div className="flex items-center gap-1">
-          {confidenceLevels.map((level) => (
-            <button
-              key={level}
-              onClick={() => onConfidenceChange(level)}
-              className={cn(
-                "px-2 py-0.5 text-xs rounded-md border transition-colors",
-                minConfidence === level
-                  ? "bg-foreground text-background border-foreground"
-                  : "bg-transparent text-muted-foreground border-border hover:border-foreground/40"
-              )}
-            >
-              {level === 0 ? "All" : `${level}%+`}
-            </button>
-          ))}
+          {convictionOptions.map((opt) => {
+            const isActive =
+              opt.value === "all"
+                ? convictionFilter.has("tentative")
+                : convictionFilter.has(opt.value);
+            return (
+              <button
+                key={opt.value}
+                onClick={() => handleConvictionClick(opt.value)}
+                className={cn(
+                  "px-2 py-0.5 text-xs rounded-md border transition-colors",
+                  isActive
+                    ? "bg-foreground text-background border-foreground"
+                    : "bg-transparent text-muted-foreground border-border hover:border-foreground/40"
+                )}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
         </div>
       </div>
       <div className="flex items-center gap-1">
@@ -100,7 +131,7 @@ export function FeedFilters({
         })}
       </div>
       <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
-        {filteredCount} of {totalCount} mentions
+        {filteredCount} of {totalCount} calls
       </span>
     </div>
   );

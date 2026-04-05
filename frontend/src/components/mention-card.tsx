@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import {
   Card,
   CardContent,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { SentimentBadge } from "@/components/sentiment-badge";
+import { ConvictionIndicator } from "@/components/conviction-indicator";
 import type { MentionWithEpisode } from "@/types/database";
 
 function timeAgo(dateStr: string): string {
@@ -24,14 +25,19 @@ function timeAgo(dateStr: string): string {
   return "just now";
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  host: "Host",
+  regular_guest: "Regular",
+  guest: "Guest",
+};
+
 export function MentionCard({ mention }: { mention: MentionWithEpisode }) {
-  const [showContext, setShowContext] = useState(false);
-  const hasContext = !!mention.transcript_context;
+  const lowConfidence = mention.confidence != null && mention.confidence < 0.6;
 
   return (
     <Card className="transition-colors hover:border-foreground/20">
       <CardContent className="p-4">
-        {/* Row 1: Ticker + Sentiment + Date */}
+        {/* Row 1: Ticker + Company + Date */}
         <div className="flex items-center justify-between gap-2 mb-1">
           <div className="flex items-center gap-2">
             <Link
@@ -54,16 +60,24 @@ export function MentionCard({ mention }: { mention: MentionWithEpisode }) {
           </span>
         </div>
 
-        {/* Row 2: Sentiment + Speaker + Episode */}
+        {/* Row 2: Sentiment + Conviction + Speaker (with role) + Episode */}
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <SentimentBadge sentiment={mention.sentiment} />
+          <ConvictionIndicator conviction={mention.conviction_strength} />
           {mention.speaker && (
-            <Link
-              href={`/speaker/${encodeURIComponent(mention.speaker)}`}
-              className="text-sm text-muted-foreground hover:underline"
-            >
-              {mention.speaker}
-            </Link>
+            <div className="flex items-center gap-1">
+              <Link
+                href={`/speaker/${encodeURIComponent(mention.speaker)}`}
+                className="text-sm text-muted-foreground hover:underline"
+              >
+                {mention.speaker}
+              </Link>
+              {mention.speaker_role && ROLE_LABELS[mention.speaker_role] && (
+                <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 font-normal">
+                  {ROLE_LABELS[mention.speaker_role]}
+                </Badge>
+              )}
+            </div>
           )}
           <span className="text-sm text-muted-foreground">&middot;</span>
           <span className="text-xs text-muted-foreground truncate">
@@ -71,44 +85,39 @@ export function MentionCard({ mention }: { mention: MentionWithEpisode }) {
           </span>
         </div>
 
-        {/* Row 3: Quote */}
-        <blockquote className="text-sm text-muted-foreground border-l-2 border-muted pl-3 line-clamp-3">
-          &ldquo;{mention.quote}&rdquo;
-        </blockquote>
-
-        {/* Row 4: Reasoning */}
-        {mention.reasoning && (
-          <p className="text-xs text-muted-foreground mt-2 italic">
-            {mention.reasoning}
+        {/* Row 3: Call Summary (primary content) */}
+        {mention.call_summary && (
+          <p className="text-sm text-foreground mb-2">
+            {mention.call_summary}
           </p>
         )}
 
-        {/* Row 5: Conviction + Confidence + Context toggle */}
+        {/* Row 4: Episode link + Low confidence warning */}
         <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-          {mention.conviction_strength && (
-            <span className="capitalize">
-              {mention.conviction_strength} conviction
-            </span>
-          )}
-          {mention.confidence != null && (
-            <span>{Math.round(mention.confidence * 100)}% confidence</span>
-          )}
-          {hasContext && (
-            <button
-              onClick={() => setShowContext(!showContext)}
-              className="ml-auto text-xs text-foreground/60 hover:text-foreground transition-colors"
+          {mention.episodes.audio_url && (
+            <a
+              href={mention.episodes.audio_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-foreground/60 hover:text-foreground transition-colors"
             >
-              {showContext ? "Hide context" : "Show context"}
-            </button>
+              Listen to episode &rarr;
+            </a>
+          )}
+          {lowConfidence && (
+            <span
+              className="ml-auto text-amber-500/80"
+              title="Our AI had lower confidence extracting this mention. The summary may not fully capture the speaker's intent."
+            >
+              Low extraction confidence
+            </span>
           )}
         </div>
 
-        {/* Expandable transcript context */}
-        {showContext && mention.transcript_context && (
-          <div className="mt-3 p-3 rounded-md bg-muted/50 text-xs text-muted-foreground font-mono leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto">
-            {mention.transcript_context}
-          </div>
-        )}
+        {/* Footer: AI disclosure */}
+        <p className="text-[10px] text-muted-foreground/50 mt-2">
+          AI-generated summary &mdash; listen to the episode for full context
+        </p>
       </CardContent>
     </Card>
   );

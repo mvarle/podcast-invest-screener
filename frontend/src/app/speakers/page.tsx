@@ -31,7 +31,7 @@ async function getSpeakers(): Promise<SpeakerSummary[]> {
   if (!supabase) return [];
 
   const { data, error } = await supabase
-    .from("stock_mentions")
+    .from("stock_mentions_public")
     .select("speaker, sentiment, created_at")
     .not("speaker", "is", null)
     .in("mention_type", ["investment_call"])

@@ -23,7 +23,7 @@ async function getMentionsForStock(
 
   const [mentionsResult, stockInfoResult] = await Promise.all([
     supabase
-      .from("stock_mentions")
+      .from("stock_mentions_public")
       .select(
         `
         *,
@@ -31,6 +31,7 @@ async function getMentionsForStock(
           title,
           release_date,
           podcast_id,
+          audio_url,
           podcasts!inner (
             name
           )
