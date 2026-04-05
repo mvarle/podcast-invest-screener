@@ -8,6 +8,8 @@
     "pipeline:ingest": "node pipeline/run.js --ingest",
     "pipeline:transcribe": "node pipeline/run.js --transcribe",
     "pipeline:extract": "node pipeline/run.js --extract",
+    "pipeline:prices": "node pipeline/run.js --fetch-prices",
+    "pipeline:prices:backfill": "node pipeline/run.js --fetch-prices --backfill 365",
     "validate:fetch": "node validation/01-fetch-episode.js",
     "validate:transcribe": "node validation/02-transcribe.js",
     "validate:extract": "node validation/03-extract.js",

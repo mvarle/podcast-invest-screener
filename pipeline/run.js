@@ -7,16 +7,19 @@
  *   3. Extraction: send transcripts to Claude, store stock mentions
  *
  * Usage:
- *   node pipeline/run.js              # Run full pipeline
+ *   node pipeline/run.js              # Run full pipeline (ingest+transcribe+extract)
  *   node pipeline/run.js --ingest     # Only RSS ingestion
  *   node pipeline/run.js --transcribe # Only transcription
  *   node pipeline/run.js --extract    # Only extraction
+ *   node pipeline/run.js --fetch-prices             # Fetch 30 days of prices
+ *   node pipeline/run.js --fetch-prices --backfill 365  # Backfill 1 year
  */
 
 require("dotenv").config();
 const { ingest } = require("./stages/ingest");
 const { transcribe } = require("./stages/transcribe");
 const { extract } = require("./stages/extract");
+const { fetchPrices } = require("./stages/fetch-prices");
 
 const args = process.argv.slice(2);
 const runAll = args.length === 0;
@@ -41,6 +44,15 @@ async function main() {
   if (runAll || args.includes("--extract")) {
     console.log("── Stage 3: Extraction ──\n");
     await extract();
+    console.log();
+  }
+
+  if (args.includes("--fetch-prices")) {
+    console.log("── Price Data Fetch ──\n");
+    const backfillIdx = args.indexOf("--backfill");
+    const backfillDays =
+      backfillIdx !== -1 ? parseInt(args[backfillIdx + 1], 10) : undefined;
+    await fetchPrices(backfillDays);
     console.log();
   }
 
